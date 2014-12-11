@@ -4,7 +4,7 @@ open import Relation.Binary.Core
 open import Relation.Binary.PropositionalEquality as P
 import Relation.Binary.EqReasoning as EqR
 
-module Iso where
+module Isomorphic where
 
 -- Two sets are isomorphic when there is a bijection between them
 record Iso {ℓ₁ ℓ₂} (A : Set ℓ₁) (B : Set ℓ₂) : Set (ℓ₁ ⊔ ℓ₂) where
