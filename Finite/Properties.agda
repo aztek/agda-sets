@@ -43,6 +43,67 @@ Bool-finite = record
     inverseʳ true = refl
     inverseʳ false = refl
 
+
+-- Assuming extensionality, Bool → Bool is finite
+import Level as L
+
+Bool→Bool-finite : Extensionality L.zero L.zero → Finite (Bool → Bool)
+Bool→Bool-finite extensionality = record
+  { ℵ = 4
+  ; iso = record
+    { to = to
+    ; from = from
+    ; inverseˡ = inverseˡ
+    ; inverseʳ = inverseʳ
+    }
+  }
+  where
+    to : (Bool → Bool) → Fin 4
+    to f
+      with f true | f false
+    ...  | true   | true  = zero
+    ...  | true   | false = suc zero
+    ...  | false  | true  = suc (suc zero)
+    ...  | false  | false = suc (suc (suc zero))
+
+    from : Fin 4 → Bool → Bool
+    from zero = const true
+    from (suc zero) = id
+    from (suc (suc zero)) = not
+    from (suc (suc (suc zero))) = const false
+    from (suc (suc (suc (suc ()))))
+
+    inverseˡ : to ∘ from ≗ id
+    inverseˡ zero = refl
+    inverseˡ (suc zero) = refl
+    inverseˡ (suc (suc zero)) = refl
+    inverseˡ (suc (suc (suc zero))) = refl
+    inverseˡ (suc (suc (suc (suc ()))))
+
+    inverseʳ : id ≗ from ∘ to
+    inverseʳ f = extensionality helper
+      where
+        true-case : f true ≡ from (to f) true
+        true-case
+          with f true | f false
+        ...  | true   | true  = refl
+        ...  | true   | false = refl
+        ...  | false  | true  = refl
+        ...  | false  | false = refl
+
+        false-case : f false ≡ from (to f) false
+        false-case
+          with f true | f false
+        ...  | true   | true  = refl
+        ...  | true   | false = refl
+        ...  | false  | true  = refl
+        ...  | false  | false = refl
+
+        helper : f ≗ from (to f)
+        helper true = true-case
+        helper false = false-case
+
+
 -- ⊥ is finite (duh)
 open import Data.Empty
 
@@ -86,6 +147,39 @@ finite-iso A≅B f = record
   ; iso = ≅-trans (≅-sym A≅B) (Finite.iso f)
   }
 
+-- Maybe of a finite set is finite
+open import Data.Maybe
+
+maybe-finite : ∀ {ℓ} {A : Set ℓ} → Finite A → Finite (Maybe A)
+maybe-finite finite = record
+  { ℵ = suc ℵ
+  ; iso = record
+    { to = to
+    ; from = from
+    ; inverseˡ = inverseˡ
+    ; inverseʳ = inverseʳ
+    }
+  }
+  where
+    open Finite.Finite finite
+
+    to : Maybe _ → Fin (suc ℵ)
+    to nothing = zero
+    to (just a) = suc (Iso.to iso a)
+
+    from : Fin (suc ℵ) → Maybe _
+    from zero = nothing
+    from (suc n) = just (Iso.from iso n)
+
+    inverseˡ : to ∘ from ≗ id
+    inverseˡ zero = refl
+    inverseˡ (suc n) = cong suc (Iso.inverseˡ iso n)
+
+    inverseʳ : id ≗ from ∘ to
+    inverseʳ (just a) = cong just (Iso.inverseʳ iso a)
+    inverseʳ nothing = refl
+
+
 -- Product of finite set is finite
 open import Data.Sum as S
 open import Data.Fin hiding (_+_)
@@ -95,7 +189,7 @@ import Relation.Binary.EqReasoning as EqR
 
 ⊎-finite : ∀ {ℓ₁ ℓ₂} {A₁ : Set ℓ₁} {A₂ : Set ℓ₂} → Finite A₁ → Finite A₂ → Finite (A₁ ⊎ A₂)
 ⊎-finite f₁ f₂ = record
-  { ℵ = ℵ
+  { ℵ = ℵ₁ + ℵ₂
   ; iso = record
     { to = to
     ; from = from
@@ -104,40 +198,28 @@ import Relation.Binary.EqReasoning as EqR
     }
   }
   where
-    ℵ₁ = Finite.ℵ f₁
-    ℵ₂ = Finite.ℵ f₂
+    open Finite.Finite f₁ renaming (ℵ to ℵ₁; iso to iso₁)
+    open Finite.Finite f₂ renaming (ℵ to ℵ₂; iso to iso₂)
+    open Iso (+≅⊎-fin ℵ₁ ℵ₂) renaming (from to +-from; to to +-to; inverseˡ to +-inverseˡ; inverseʳ to +-inverseʳ)
+    open Iso (⊎-≅ iso₁ iso₂) renaming (from to ⊎-from; to to ⊎-to; inverseˡ to ⊎-inverseˡ; inverseʳ to ⊎-inverseʳ)
 
-    ℵ = ℵ₁ + ℵ₂
-
-    open Iso (+≅⊎-fin ℵ₁ ℵ₂) renaming (from to encode; to to decode; inverseʳ to encode∘decode; inverseˡ to decode∘encode)
-
-    iso₁ = Finite.iso f₁
-    iso₂ = Finite.iso f₂
-
-    open Iso iso₁ renaming (to to to₁; from to from₁; inverseˡ to inverseˡ₁; inverseʳ to inverseʳ₁)
-    open Iso iso₂ renaming (to to to₂; from to from₂; inverseˡ to inverseˡ₂; inverseʳ to inverseʳ₂)
-
-    to = encode ∘ S.map to₁ to₂
-    from = S.map from₁ from₂ ∘ decode
-
-    to∘from : S.map to₁ to₂ ∘ S.map from₁ from₂ ≗ id
-    to∘from = [ cong inj₁ ∘ inverseˡ₁ , cong inj₂ ∘ inverseˡ₂ ]
+    to = +-from ∘ ⊎-to
+    from = ⊎-from ∘ +-to
 
     inverseˡ = begin
                  to ∘ from
-               ≈⟨ cong encode ∘ to∘from ∘ decode ⟩
-                 encode ∘ decode
-               ≈⟨ sym ∘ encode∘decode ⟩
+               ≈⟨ (λ _ → refl) ⟩
+                 +-from ∘ (⊎-to ∘ ⊎-from) ∘ +-to
+               ≈⟨ cong +-from ∘ ⊎-inverseˡ ∘ +-to ⟩
+                 +-from ∘ +-to
+               ≈⟨ sym ∘ +-inverseʳ ⟩
                  id
                ∎ where open EqR (P._→-setoid_ _ _)
 
-    from∘to : id ≗ S.map from₁ from₂ ∘ S.map to₁ to₂
-    from∘to = [ cong inj₁ ∘ inverseʳ₁ , cong inj₂ ∘ inverseʳ₂ ]
-
     inverseʳ = begin
                  id
-               ≈⟨ from∘to ⟩
-                 S.map from₁ from₂ ∘ S.map to₁ to₂
-               ≈⟨ sym ∘ cong (map from₁ from₂) ∘ decode∘encode ∘ (map to₁ to₂) ⟩
+               ≈⟨ ⊎-inverseʳ ⟩
+                 ⊎-from ∘ ⊎-to
+               ≈⟨ sym ∘ cong ⊎-from ∘ +-inverseˡ ∘ ⊎-to ⟩
                  from ∘ to
                ∎ where open EqR (P._→-setoid_ _ _)
