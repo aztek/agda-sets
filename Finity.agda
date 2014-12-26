@@ -6,7 +6,7 @@ open import Data.Product
 open import Relation.Nullary.Core
 open import Isomorphic
 
-module Finite where
+module Finity where
 
 -- A set is finite when it's isomorphic to Fin ℵ
 record Finite {ℓ} (A : Set ℓ) : Set ℓ where

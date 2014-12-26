@@ -6,9 +6,9 @@ open import Data.Nat
 open import Data.Nat.Properties
 
 open import Isomorphic
-open import Finite
+open import Finity
 
-module Finite.Properties (extensionality : ∀ {a b} → Extensionality a b) where
+module Finity.Properties (extensionality : ∀ {a b} → Extensionality a b) where
 
 open import Isomorphic.Properties (extensionality)
 
@@ -160,7 +160,7 @@ maybe-finite finite = record
     }
   }
   where
-    open Finite.Finite finite
+    open Finite finite
 
     to : Maybe _ → Fin (suc ℵ)
     to nothing = zero
@@ -188,5 +188,5 @@ open import Data.Sum using (_⊎_)
   ; iso = ≅-trans (⊎-≅ F₁.iso F₂.iso) (≅-sym (+≅⊎-fin F₁.ℵ F₂.ℵ))
   }
   where
-    module F₁ = Finite.Finite f₁
-    module F₂ = Finite.Finite f₂
+    module F₁ = Finite f₁
+    module F₂ = Finite f₂
