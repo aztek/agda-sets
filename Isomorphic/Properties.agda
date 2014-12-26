@@ -1,10 +1,16 @@
+open import Data.Empty
+open import Relation.Nullary
 open import Relation.Binary.Core
 open import Relation.Binary.PropositionalEquality as PE
 import Relation.Binary.EqReasoning as EqR
 open import Function
+
 open import Isomorphic
 
-module Isomorphic.Properties where
+module Isomorphic.Properties (extensionality : ∀ {a b} → Extensionality a b) where
+
+open import Functor (extensionality)
+open import BiFunctor (extensionality)
 
 -- Isomorphism is an equivalence relation
 ≅-refl : ∀ {ℓ} → Reflexive (_≅_ {ℓ})
@@ -26,41 +32,39 @@ module Isomorphic.Properties where
 
 ≅-trans : ∀ {ℓ₁ ℓ₂ ℓ₃} → Trans (_≅_ {ℓ₁} {ℓ₂}) (_≅_ {ℓ₂} {ℓ₃}) (_≅_ {ℓ₁} {ℓ₃})
 ≅-trans A≅B B≅C = record
-  { to = to₂ ∘ to₁
-  ; from = from₁ ∘ from₂
+  { to = I₂.to ∘ I₁.to
+  ; from = I₁.from ∘ I₂.from
   ; inverseˡ = inverseˡ
   ; inverseʳ = inverseʳ
   }
   where
-    open Iso A≅B renaming (to to to₁; from to from₁; inverseˡ to inverseˡ₁; inverseʳ to inverseʳ₁)
-    open Iso B≅C renaming (to to to₂; from to from₂; inverseˡ to inverseˡ₂; inverseʳ to inverseʳ₂)
+    module I₁ = Iso A≅B
+    module I₂ = Iso B≅C
 
     inverseˡ = begin
-                 to₂ ∘ (to₁ ∘ from₁) ∘ from₂
-               ≈⟨ cong to₂ ∘ inverseˡ₁ ∘ from₂ ⟩
-                 to₂ ∘ from₂
-               ≈⟨ inverseˡ₂ ⟩
+                 I₂.to ∘ (I₁.to ∘ I₁.from) ∘ I₂.from
+               ≈⟨ cong I₂.to ∘ I₁.inverseˡ ∘ I₂.from ⟩
+                 I₂.to ∘ I₂.from
+               ≈⟨ I₂.inverseˡ ⟩
                  id
                ∎
                where open EqR (PE._→-setoid_ _ _)
 
     inverseʳ = begin
                  id
-               ≈⟨ inverseʳ₁ ⟩
-                 from₁ ∘ to₁
-               ≈⟨ cong from₁ ∘ inverseʳ₂ ∘ to₁ ⟩
-                 from₁ ∘ (from₂ ∘ to₂) ∘ to₁
+               ≈⟨ I₁.inverseʳ ⟩
+                 I₁.from ∘ I₁.to
+               ≈⟨ cong I₁.from ∘ I₂.inverseʳ ∘ I₁.to ⟩
+                 I₁.from ∘ (I₂.from ∘ I₂.to) ∘ I₁.to
                ∎
                where open EqR (PE._→-setoid_ _ _)
 
 -- A property, involving sums and Fins
-open import Data.Sum as S
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Fin hiding (_+_)
 open import Data.Fin.Props
-open import Data.Nat as N
+open import Data.Nat as N hiding (_⊔_)
 open import Data.Nat.Properties
-open import Relation.Nullary
-open import Data.Empty
 
 +≅⊎-fin : ∀ n m → Fin (n + m) ≅ Fin n ⊎ Fin m
 +≅⊎-fin n m = record
@@ -115,61 +119,12 @@ open import Data.Empty
       where lemma : toℕ i ≡ toℕ (inject+ m (fromℕ≤ p))
             lemma rewrite sym (inject+-lemma m (fromℕ≤ p)) = sym (toℕ-fromℕ≤ p)
 
-
 -- Pairwise sums of isomorphic sets are isomorphic
-⊎-≅ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-      A ≅ C → B ≅ D → A ⊎ B ≅ C ⊎ D
-⊎-≅ A≅C B≅D = record
-  { to = to
-  ; from = from
-  ; inverseˡ = inverseˡ
-  ; inverseʳ = inverseʳ
-  }
-  where
-    open Iso A≅C renaming (to to to₁; from to from₁; inverseˡ to inverseˡ₁; inverseʳ to inverseʳ₁)
-    open Iso B≅D renaming (to to to₂; from to from₂; inverseˡ to inverseˡ₂; inverseʳ to inverseʳ₂)
-
-    to = S.map to₁ to₂
-    from = S.map from₁ from₂
-
-    inverseˡ = [ cong inj₁ ∘ inverseˡ₁ , cong inj₂ ∘ inverseˡ₂ ]
-    inverseʳ = [ cong inj₁ ∘ inverseʳ₁ , cong inj₂ ∘ inverseʳ₂ ]
-
+⊎-≅ : ∀ {A B C D} → A ≅ C → B ≅ D → A ⊎ B ≅ C ⊎ D
+⊎-≅ = ≅-lift-bifunctor ⊎-bifunctor
 
 -- Pairwise products of isomorphic sets are isomorphic
-open import Data.Product as P
+open import Data.Product using (_×_)
 
-×-≅ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-      A ≅ C → B ≅ D → A × B ≅ C × D
-×-≅ A≅C B≅D = record
-  { to = to
-  ; from = from
-  ; inverseˡ = inverseˡ
-  ; inverseʳ = inverseʳ
-  }
-  where
-    open Iso A≅C renaming (to to to₁; from to from₁; inverseˡ to inverseˡ₁; inverseʳ to inverseʳ₁)
-    open Iso B≅D renaming (to to to₂; from to from₂; inverseˡ to inverseˡ₂; inverseʳ to inverseʳ₂)
-
-    to = P.map to₁ to₂
-    from = P.map from₁ from₂
-
-    inverseˡ : to ∘ from ≗ id
-    inverseˡ (a , b) = cong₂ _,_ (inverseˡ₁ a) (inverseˡ₂ b)
-
-    inverseʳ : id ≗ from ∘ to
-    inverseʳ (c , d) = cong₂ _,_ (inverseʳ₁ c) (inverseʳ₂ d)
-
-
-≅-lift : ∀ {a b p} {A : Set a} {B : Set b} {P : ∀ {c} → Set c → Set p}
-         (map-to : (A → B) → P A → P B) (map-from : (B → A) → P B → P A) →
-         (congˡ : ∀ {to from} → to ∘ from ≗ id → map-to to ∘ map-from from ≗ id) →
-         (congʳ : ∀ {to from} → id ≗ from ∘ to → id ≗ map-from from ∘ map-to to) →
-         A ≅ B → P A ≅ P B
-≅-lift map-to map-from congˡ congʳ A≅B = record
-  { to = map-to to
-  ; from = map-from from
-  ; inverseˡ = congˡ inverseˡ
-  ; inverseʳ = congʳ inverseʳ
-  }
-  where open Iso A≅B
+×-≅ : ∀ {A B C D} → A ≅ C → B ≅ D → A × B ≅ C × D
+×-≅ = ≅-lift-bifunctor ×-bifunctor

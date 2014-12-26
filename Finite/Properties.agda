@@ -6,10 +6,11 @@ open import Data.Nat
 open import Data.Nat.Properties
 
 open import Isomorphic
-open import Isomorphic.Properties
 open import Finite
 
-module Finite.Properties where
+module Finite.Properties (extensionality : ∀ {a b} → Extensionality a b) where
+
+open import Isomorphic.Properties (extensionality)
 
 -- Bool is finite
 open import Data.Bool
@@ -45,10 +46,8 @@ Bool-finite = record
 
 
 -- Assuming extensionality, Bool → Bool is finite
-import Level as L
-
-Bool→Bool-finite : Extensionality L.zero L.zero → Finite (Bool → Bool)
-Bool→Bool-finite extensionality = record
+Bool→Bool-finite : Finite (Bool → Bool)
+Bool→Bool-finite = record
   { ℵ = 4
   ; iso = record
     { to = to
@@ -180,46 +179,14 @@ maybe-finite finite = record
     inverseʳ nothing = refl
 
 
--- Product of finite set is finite
-open import Data.Sum as S
-open import Data.Fin hiding (_+_)
+-- The sum of finite set is finite
+open import Data.Sum using (_⊎_)
 
-open import Relation.Binary.PropositionalEquality as P
-import Relation.Binary.EqReasoning as EqR
-
-⊎-finite : ∀ {ℓ₁ ℓ₂} {A₁ : Set ℓ₁} {A₂ : Set ℓ₂} → Finite A₁ → Finite A₂ → Finite (A₁ ⊎ A₂)
+⊎-finite : ∀ {A B} → Finite A → Finite B → Finite (A ⊎ B)
 ⊎-finite f₁ f₂ = record
-  { ℵ = ℵ₁ + ℵ₂
-  ; iso = record
-    { to = to
-    ; from = from
-    ; inverseˡ = inverseˡ
-    ; inverseʳ = inverseʳ
-    }
+  { ℵ = F₁.ℵ + F₂.ℵ
+  ; iso = ≅-trans (⊎-≅ F₁.iso F₂.iso) (≅-sym (+≅⊎-fin F₁.ℵ F₂.ℵ))
   }
   where
-    open Finite.Finite f₁ renaming (ℵ to ℵ₁; iso to iso₁)
-    open Finite.Finite f₂ renaming (ℵ to ℵ₂; iso to iso₂)
-    open Iso (+≅⊎-fin ℵ₁ ℵ₂) renaming (from to +-from; to to +-to; inverseˡ to +-inverseˡ; inverseʳ to +-inverseʳ)
-    open Iso (⊎-≅ iso₁ iso₂) renaming (from to ⊎-from; to to ⊎-to; inverseˡ to ⊎-inverseˡ; inverseʳ to ⊎-inverseʳ)
-
-    to = +-from ∘ ⊎-to
-    from = ⊎-from ∘ +-to
-
-    inverseˡ = begin
-                 to ∘ from
-               ≈⟨ (λ _ → refl) ⟩
-                 +-from ∘ (⊎-to ∘ ⊎-from) ∘ +-to
-               ≈⟨ cong +-from ∘ ⊎-inverseˡ ∘ +-to ⟩
-                 +-from ∘ +-to
-               ≈⟨ sym ∘ +-inverseʳ ⟩
-                 id
-               ∎ where open EqR (P._→-setoid_ _ _)
-
-    inverseʳ = begin
-                 id
-               ≈⟨ ⊎-inverseʳ ⟩
-                 ⊎-from ∘ ⊎-to
-               ≈⟨ sym ∘ cong ⊎-from ∘ +-inverseˡ ∘ ⊎-to ⟩
-                 from ∘ to
-               ∎ where open EqR (P._→-setoid_ _ _)
+    module F₁ = Finite.Finite f₁
+    module F₂ = Finite.Finite f₂

@@ -1,4 +1,4 @@
-open import Level using (_⊔_)
+open import Level
 open import Function
 open import Relation.Binary.Core
 open import Relation.Binary.PropositionalEquality
